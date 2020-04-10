@@ -3,53 +3,67 @@
 
 $(document).ready(() => {
 
-  let $theWarning = $("#theWarning");
-  let $logBody = $("#logBody");
-  let calls = [];
+    let $theWarning = $("#theWarning");
+    let $logBody = $("#logBody");
+    let calls = [];
 
-  $theWarning.hide();
-  $logBody.on("click", ".delete-button", function () {
-    deleteCall(this);
-  });
+    $theWarning.hide();
+    $logBody.on("click", ".delete-button", function () {
+        deleteCall(this);
+    });
 
+    const client = new signalR.HubConnectionBuilder()
+        .withUrl("/callcenter")
+        .build();
 
-  function addCalls() {
-    $logBody.empty();
-    $.each(calls, (i,c) => addCall(c));
-  }
+    client.on("NewCallReceive", newCall => {
+        addCall(newCall);
+    });
 
-  function addCall(call) {
-    let template = `<tr>
+    function addCalls() {
+        $logBody.empty();
+        $.each(calls, (i, c) => addCall(c));
+    }
+
+    function addCall(call) {
+        let template = `<tr>
   <td>${call.name}</td>
   <td>${call.email}</td>
   <td>${moment(call.callTime).format("llll")}</td>
   <td><button class="btn btn-sm btn-warning delete-button" data-id="${call.id}">Clear</button></td>
 </tr>`;
-    $logBody.append($(template));
-  }
+        $logBody.append($(template));
+    }
 
-  function deleteCall(button) {
-    let id = $(button).attr("data-id");
-    $.ajax({
-      url: `/api/calls/${id}`, 
-      method: "delete"
-    })
-      .then(res => {
-        $(button).closest("tr").remove();
-      });
-  }
+    function deleteCall(button) {
+        let id = $(button).attr("data-id");
+        $.ajax({
+            url: `/api/calls/${id}`,
+            method: "delete"
+        })
+            .then(res => {
+                $(button).closest("tr").remove();
+            });
+    }
 
-  function getCalls() {
-    $.getJSON("/api/calls")
-      .then(res => {
-        calls = res;
-        addCalls();
-      })
-      .catch(() => {
-        $theWarning.text("Failed to get calls...");
-        $theWarning.show();
-      });
-  }
+    function getCalls() {
+        $.getJSON("/api/calls")
+            .then(res => {
+                calls = res;
+                addCalls();
+                startClient();
+                
+            })
+            .catch(() => {
+                $theWarning.text("Failed to get calls...");
+                $theWarning.show();
+            });
+    }
 
-  getCalls();
+    function startClient() {
+        client.start().then(() => {
+            client.invoke("JoinCallCenters");
+        });
+    }
+    getCalls();
 });
